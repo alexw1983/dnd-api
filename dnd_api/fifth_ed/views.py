@@ -11,7 +11,8 @@ from .serializers import CharacterSerializer, UserSerializer
 class CharacterList(generics.ListCreateAPIView):
     queryset = Character.objects.all()
     serializer_class = CharacterSerializer
-    permission_classes = [permissions.IsAuthenticatedOrReadOnly]
+    # permission_classes = [permissions.IsAuthenticatedOrReadOnly]
+    permission_classes = [permissions.IsAuthenticated]
 
     def perform_create(self, serializer):
         serializer.save(owner=self.request.user)

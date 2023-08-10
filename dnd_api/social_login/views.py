@@ -11,7 +11,6 @@ from requests.exceptions import HTTPError
 
 from social_django.utils import psa
 
-# from social_core.backends.google import GoogleOAuth2
 from google.oauth2 import id_token
 from google.auth.transport import requests
 
@@ -32,31 +31,9 @@ class SocialSerializer(serializers.Serializer):
 @api_view(http_method_names=["POST"])
 @permission_classes([AllowAny])
 @psa()
-def exchange_token(request, backend):
+def exchange_token(request):
     """
     Exchange an OAuth2 access token for one for this site.
-
-    This simply defers the entire OAuth2 process to the front end.
-    The front end becomes responsible for handling the entirety of the
-    OAuth2 process; we just step in at the end and use the access token
-    to populate some user identity.
-
-    The URL at which this view lives must include a backend field, like:
-        url(API_ROOT + r'social/(?P<backend>[^/]+)/$', exchange_token),
-
-    Using that example, you could call this endpoint using i.e.
-        POST API_ROOT + 'social/facebook/'
-        POST API_ROOT + 'social/google-oauth2/'
-
-    Note that those endpoint examples are verbatim according to the
-    PSA backends which we configured in settings.py. If you wish to enable
-    other social authentication backends, they'll get their own endpoints
-    automatically according to PSA.
-
-    ## Request format
-
-    Requests must include the following field
-    - `access_token`: The OAuth2 access token provided by the provider
     """
     serializer = SocialSerializer(data=request.data)
     if serializer.is_valid(raise_exception=True):
@@ -68,14 +45,7 @@ def exchange_token(request, backend):
             nfe = "non_field_errors"
 
         try:
-            # this line, plus the psa decorator above, are all that's necessary to
-            # get and populate a user object for any properly enabled/configured backend
-            # which python-social-auth can handle.
             a_t = serializer.validated_data["access_token"]
-
-            print("==============ACCESS TOKEN===================")
-            print(a_t)
-            print("==============================================")
 
             idinfo = id_token.verify_oauth2_token(
                 a_t,
@@ -83,19 +53,11 @@ def exchange_token(request, backend):
                 "874396557202-tn6o0ib9vmss70ugki9qco9ihmj5pucg.apps.googleusercontent.com",
             )
 
-            print("==============ID===================")
+            print("================ID INFO==============")
             print(idinfo)
-            print("==============================================")
+            print("=====================================")
 
             user = User.objects.filter(email=idinfo["email"])[:1].get()
-
-            print("==============ID===================")
-            print(user)
-            print("==============================================")
-
-            # g = GoogleOAuth2()
-            # user = backend.do_auth(access_token=a_t)
-            # user = request.backend.do_auth(access_token=a_t)
         except HTTPError as e:
             # An HTTPError bubbled up from the request to the social auth provider.
             # This happens, at least in Google's case, every time you send a malformed
@@ -112,10 +74,6 @@ def exchange_token(request, backend):
 
         if user:
             token, _ = Token.objects.get_or_create(user=user)
-
-            print("==============token===================")
-            print(token)
-            print("==============================================")
             return Response({"token": token.key})
             # if user.is_active:
             #     token, _ = Token.objects.get_or_create(user=user)
@@ -133,6 +91,7 @@ def exchange_token(request, backend):
             # Unfortunately, PSA swallows any information the backend provider
             # generated as to why specifically the authentication failed;
             # this makes it tough to debug except by examining the server logs.
+
             return Response(
                 {"errors": {nfe: "Authentication Failed"}},
                 status=status.HTTP_400_BAD_REQUEST,

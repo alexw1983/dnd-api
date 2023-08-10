@@ -23,7 +23,7 @@ class CharacterSerializer(serializers.ModelSerializer):
 
 class UserSerializer(serializers.ModelSerializer):
     characters = serializers.PrimaryKeyRelatedField(
-        many=True, queryset=Character.objects.all()
+        many=True, queryset=Character.objects.all(), required=False
     )
 
     class Meta:
